@@ -17,7 +17,7 @@ function MdToastDirective($mdToast) {
     restrict: 'E',
     link: function postLink(scope, element) {
       element.addClass('_md');     // private md component indicator for styling
-      
+
       // When navigation force destroys an interimElement, then
       // listen and $destroy() that interim instance...
       scope.$on('$destroy', function() {
@@ -43,6 +43,35 @@ function MdToastDirective($mdToast) {
   * - The toast's template must have an outer `<md-toast>` element.
   * - For a toast action, use element with class `md-action`.
   * - Add the class `md-capsule` for curved corners.
+  *
+  * ### Custom Presets
+  * Developers are also able to create their own preset, which can be easily used without repeating
+  * their options each time.
+  *
+  * <hljs lang="js">
+  *   $mdToastProvider.addPreset('testPreset', {
+  *     options: function() {
+  *       return {
+  *         template:
+  *           '<md-toast>' +
+  *             '<div class="md-toast-content">' +
+  *               'This is a custom preset' +
+  *             '</div>' +
+  *           '</md-toast>',
+  *         controllerAs: 'toast',
+  *         bindToController: true
+  *       };
+  *     }
+  *   });
+  * </hljs>
+  *
+  * After you created your preset at config phase, you can easily access it.
+  *
+  * <hljs lang="js">
+  *   $mdToast.show(
+  *     $mdToast.testPreset()
+  *   );
+  * </hljs>
   *
   * ## Parent container notes
   *
@@ -89,7 +118,7 @@ function MdToastDirective($mdToast) {
 /**
  * @ngdoc method
  * @name $mdToast#showSimple
- * 
+ *
  * @param {string} message The message to display inside the toast
  * @description
  * Convenience method which builds and shows a simple toast.
@@ -292,24 +321,7 @@ function MdToastProvider($$interimElementProvider) {
             '    </md-button>' +
             '  </div>' +
             '</md-toast>',
-          controller: /* @ngInject */ function mdToastCtrl($scope) {
-            var self = this;
-
-            if (self.highlightAction) {
-              $scope.highlightClasses = [
-                'md-highlight',
-                self.highlightClass
-              ]
-            }
-
-            $scope.$watch(function() { return activeToastContent; }, function() {
-              self.content = activeToastContent;
-            });
-
-            this.resolve = function() {
-              $mdToast.hide( ACTION_RESOLVE );
-            };
-          },
+          controller: MdToastController,
           theme: $mdTheming.defaultTheme(),
           controllerAs: 'toast',
           bindToController: true
@@ -324,6 +336,33 @@ function MdToastProvider($$interimElementProvider) {
     }
 
     return $mdToast;
+
+  /**
+   * Controller for the Toast interim elements.
+   * @ngInject
+   */
+  function MdToastController($mdToast, $scope) {
+    // For compatibility with AngularJS 1.6+, we should always use the $onInit hook in
+    // interimElements. The $mdCompiler simulates the $onInit hook for all versions.
+    this.$onInit = function() {
+      var self = this;
+
+      if (self.highlightAction) {
+        $scope.highlightClasses = [
+          'md-highlight',
+          self.highlightClass
+        ];
+      }
+
+      $scope.$watch(function() { return activeToastContent; }, function() {
+        self.content = activeToastContent;
+      });
+
+      this.resolve = function() {
+        $mdToast.hide( ACTION_RESOLVE );
+      };
+    };
+  }
 
   /* @ngInject */
   function toastDefaultOptions($animate, $mdToast, $mdUtil, $mdMedia) {

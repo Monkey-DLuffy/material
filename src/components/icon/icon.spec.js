@@ -205,12 +205,6 @@ describe('MdIcon directive', function() {
       module(function($provide) {
         var $mdIconMock = function(id) {
 
-          wasLastSvgSrcTrusted = false;
-          if (!angular.isString(id)) {
-            id = $sce.getTrustedUrl(id);
-            wasLastSvgSrcTrusted = true;
-          }
-
           return {
             then: function(fn) {
               switch(id) {
@@ -221,8 +215,6 @@ describe('MdIcon directive', function() {
                 case 'android.svg'      : fn('<svg><g id="android"></g></svg>');
                   break;
                 case 'cake.svg'         : fn('<svg><g id="cake"></g></svg>');
-                  break;
-                case 'galactica.svg'         : fn('<svg><g id="galactica"></g></svg>');
                   break;
                 case 'image:android'    : fn('');
                   break;
@@ -272,17 +264,10 @@ describe('MdIcon directive', function() {
         $sce = _$sce_;
       }));
 
-      it('should mark as trusted static URLs', function() {
-        el = make('<md-icon md-svg-src="galactica.svg"></md-icon>');
-        expect(wasLastSvgSrcTrusted).toBe(true);
-        expect(el[0].innerHTML).toContain('galactica')
-      });
-
       it('should update mdSvgSrc when attribute value changes', function() {
         $scope.url = 'android.svg';
         el = make('<md-icon md-svg-src="{{ url }}"></md-icon>');
         expect(el.attr('md-svg-src')).toEqual('android.svg');
-        expect(wasLastSvgSrcTrusted).toBe(false);
         $scope.url = 'cake.svg';
         $scope.$digest();
         expect(el.attr('md-svg-src')).toEqual('cake.svg');
@@ -316,6 +301,16 @@ describe('MdIcon directive', function() {
 
     describe('with ARIA support', function() {
 
+      it('should apply "img" role by default', function() {
+        el = make('<md-icon md-svg-icon="android" ></md-icon>');
+        expect(el.attr('role')).toEqual('img');
+      });
+
+      it('should apply not replace current role', function() {
+        el = make('<md-icon md-svg-icon="android" role="presentation" ></md-icon>');
+        expect(el.attr('role')).toEqual('presentation');
+      });
+
       it('should apply aria-hidden="true" when parent has valid label', function() {
         el = make('<button aria-label="Android"><md-icon md-svg-icon="android"></md-icon></button>');
         expect(el.find('md-icon').attr('aria-hidden')).toEqual('true');
@@ -329,9 +324,17 @@ describe('MdIcon directive', function() {
         expect(el.find('md-icon').attr('aria-hidden')).toEqual('true');
       });
 
-      it('should apply aria-hidden="true" when parent has text content', function() {
-        el = make('<button>Android <md-icon md-svg-icon="android"></md-icon></button>');
-        expect(el.find('md-icon').attr('aria-hidden')).toEqual('true');
+      it('should not apply aria-hidden="true" when parent has valid label but invalid role', function() {
+        el = make('<button aria-label="Android" role="command"><md-icon md-svg-icon="android"></md-icon></button>');
+        expect(el.find('md-icon').attr('aria-hidden')).toBeUndefined();
+
+        el = make('<md-radio-button aria-label="avatar 2" role="command"> '+
+                    '<div class="md-container"></div> '+
+                      '<div class="md-label"> '+
+                      '<md-icon md-svg-icon="android"></md-icon> '+
+                    '</div></md-radio-button>');
+
+        expect(el.find('md-icon').attr('aria-hidden')).toBeUndefined();
       });
 
       it('should apply aria-hidden="true" when aria-label is empty string', function() {
@@ -353,6 +356,11 @@ describe('MdIcon directive', function() {
       it('should apply svg-icon value to aria-label when aria-label not set', function() {
         el = make('<md-icon md-svg-icon="android"></md-icon>');
         expect(el.attr('aria-label')).toEqual('android');
+      });
+
+      it('should apply use alt text for aria-label value when not set', function() {
+        el = make('<md-icon md-svg-icon="android" alt="my android icon"></md-icon>');
+        expect(el.attr('aria-label')).toEqual('my android icon');
       });
     });
   });
@@ -377,7 +385,7 @@ describe('MdIcon directive', function() {
     return style
         .replace(/ng-scope|ng-isolate-scope|md-default-theme/gi,'')
         .replace(/\s\s+/g,' ')
-        .replace(/\s+\"/g,'"')
+        .replace(/\s+"/g,'"')
         .trim();
   }
 
@@ -398,6 +406,7 @@ describe('MdIcon service', function() {
       .icon('android'           , 'android.svg')
       .icon('c2'                , 'c2.svg')
       .iconSet('social'         , 'social.svg' )
+      .iconSet('symbol'         , 'symbol.svg' )
       .iconSet('emptyIconSet'   , 'emptyGroup.svg' )
       .defaultIconSet('core.svg');
 
@@ -411,6 +420,7 @@ describe('MdIcon service', function() {
 
     $templateCache.put('android.svg'    , '<svg><g id="android"></g></svg>');
     $templateCache.put('social.svg'     , '<svg><g id="s1"></g><g id="s2"></g></svg>');
+    $templateCache.put('symbol.svg'     , '<svg><symbol id="s1"></symbol><symbol id="s2" viewBox="0 0 32 32"></symbol></svg>');
     $templateCache.put('core.svg'       , '<svg><g id="c1"></g><g id="c2" class="core"></g></svg>');
     $templateCache.put('c2.svg'         , '<svg><g id="c2" class="override"></g></svg>');
     $templateCache.put('emptyGroup.svg' , '<svg></svg>');
@@ -449,15 +459,31 @@ describe('MdIcon service', function() {
       });
 
       it('should append configured SVG icon from named group', function() {
-        var expected = updateDefaults('<svg xmlns="http://www.w3.org/2000/svg"><g id="s1"></g></g></svg>');
+        var expected = updateDefaults('<svg xmlns="http://www.w3.org/2000/svg"><g id="s1"></g></svg>');
         $mdIcon('social:s1').then(function(el) {
           expect(el.outerHTML).toEqual(expected);
         });
         $scope.$digest();
       });
 
+      it('should append configured SVG icon from symbol', function() {
+        var expected = updateDefaults('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+        $mdIcon('symbol:s1').then(function(el) {
+          expect(el.outerHTML).toEqual(expected);
+        });
+        $scope.$digest();
+      });
+
+      it('should append configured SVG icon from symbol with viewBox', function() {
+        var expected = updateDefaults('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"></svg>');
+        $mdIcon('symbol:s2').then(function(el) {
+          expect(el.outerHTML).toEqual(expected);
+        });
+        $scope.$digest();
+      });
+
       it('should append configured SVG icon from default group', function() {
-        var expected = updateDefaults('<svg xmlns="http://www.w3.org/2000/svg"><g id="c1"></g></g></svg>');
+        var expected = updateDefaults('<svg xmlns="http://www.w3.org/2000/svg"><g id="c1"></g></svg>');
         $mdIcon('c1').then(function(el) {
           expect(el.outerHTML).toEqual(expected);
         });

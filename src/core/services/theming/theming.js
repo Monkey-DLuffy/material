@@ -6,7 +6,7 @@
  * @description
  * Theming
  */
-angular.module('material.core.theming', ['material.core.theming.palette'])
+angular.module('material.core.theming', ['material.core.theming.palette', 'material.core.meta'])
   .directive('mdTheme', ThemingDirective)
   .directive('mdThemable', ThemableDirective)
   .directive('mdThemesDisabled', disableThemesDirective )
@@ -36,7 +36,7 @@ function detectDisabledThemes($mdThemingProvider) {
  * ### Default Theme
  * The `$mdThemingProvider` uses by default the following theme configuration:
  *
- * - Primary Palette: `Primary`
+ * - Primary Palette: `Blue`
  * - Accent Palette: `Pink`
  * - Warn Palette: `Deep-Orange`
  * - Background Palette: `Grey`
@@ -93,34 +93,33 @@ function detectDisabledThemes($mdThemingProvider) {
  *     $mdThemingProvider.registerStyles(require('../styles/my-component.theme.css'));
  *   });
  * </hljs>
+ *
+ * ### Browser color
+ *
+ * Enables browser header coloring
+ * for more info please visit:
+ * https://developers.google.com/web/fundamentals/design-and-ui/browser-customization/theme-color
+ *
+ * Options parameter: <br/>
+ * `theme`   - A defined theme via `$mdThemeProvider` to use the palettes from. Default is `default` theme. <br/>
+ * `palette` - Can be any one of the basic material design palettes, extended defined palettes and 'primary',
+ *             'accent', 'background' and 'warn'. Default is `primary`. <br/>
+ * `hue`     - The hue from the selected palette. Default is `800`<br/>
+ *
+ * <hljs lang="js">
+ *   myAppModule.config(function($mdThemingProvider) {
+ *     // Enable browser color
+ *     $mdThemingProvider.enableBrowserColor({
+ *       theme: 'myTheme', // Default is 'default'
+ *       palette: 'accent', // Default is 'primary', any basic material palette and extended palettes are available
+ *       hue: '200' // Default is '800'
+ *     });
+ *   });
+ * </hljs>
  */
 
 /**
- * @ngdoc method
- * @name $mdThemingProvider#registerStyles
- * @param {string} styles The styles to be appended to Angular Material's built in theme css.
- */
-/**
- * @ngdoc method
- * @name $mdThemingProvider#setNonce
- * @param {string} nonceValue The nonce to be added as an attribute to the theme style tags.
- * Setting a value allows the use of CSP policy without using the unsafe-inline directive.
- */
-
-/**
- * @ngdoc method
- * @name $mdThemingProvider#setDefaultTheme
- * @param {string} themeName Default theme name to be applied to elements. Default value is `default`.
- */
-
-/**
- * @ngdoc method
- * @name $mdThemingProvider#alwaysWatchTheme
- * @param {boolean} watch Whether or not to always watch themes for changes and re-apply
- * classes when they change. Default is `false`. Enabling can reduce performance.
- */
-
-/* Some Example Valid Theming Expressions
+ * Some Example Valid Theming Expressions
  * =======================================
  *
  * Intention group expansion: (valid for primary, accent, warn, background)
@@ -141,7 +140,6 @@ function detectDisabledThemes($mdThemingProvider) {
  * {{foreground-2}} - used for secondary text/divider
  * {{foreground-3}} - used for disabled text
  * {{foreground-4}} - used for dividers
- *
  */
 
 // In memory generated CSS rules; registered by theme.name
@@ -228,7 +226,7 @@ var themeConfig = {
 /**
  *
  */
-function ThemingProvider($mdColorPalette) {
+function ThemingProvider($mdColorPalette, $$mdMetaProvider) {
   PALETTES = { };
   var THEMES = { };
 
@@ -242,30 +240,95 @@ function ThemingProvider($mdColorPalette) {
 
   // Default theme defined in core.js
 
+  /**
+   * Adds `theme-color` and `msapplication-navbutton-color` meta tags with the color parameter
+   * @param {string} color Hex value of the wanted browser color
+   * @returns {function} Remove function of the meta tags
+   */
+  var setBrowserColor = function (color) {
+    // Chrome, Firefox OS and Opera
+    var removeChrome = $$mdMetaProvider.setMeta('theme-color', color);
+    // Windows Phone
+    var removeWindows = $$mdMetaProvider.setMeta('msapplication-navbutton-color', color);
+
+    return function () {
+      removeChrome();
+      removeWindows();
+    };
+  };
+
+  /**
+   * @ngdoc method
+   * @name $mdThemingProvider#enableBrowserColor
+   * @description
+   * Enables browser header coloring. For more info please visit
+   * <a href="https://developers.google.com/web/fundamentals/design-and-ui/browser-customization/theme-color">
+   *   Web Fundamentals</a>.
+   * @param {object=} options Options for the browser color, which include:<br/>
+   * - `theme` - `{string}`: A defined theme via `$mdThemeProvider` to use the palettes from. Default is `default` theme. <br/>
+   * - `palette` - `{string}`:  Can be any one of the basic material design palettes, extended defined palettes, or `primary`,
+   *  `accent`, `background`, and `warn`. Default is `primary`.<br/>
+   * - `hue` -  `{string}`: The hue from the selected palette. Default is `800`.<br/>
+   * @returns {function} Function that removes the browser coloring when called.
+   */
+  var enableBrowserColor = function (options) {
+    options = angular.isObject(options) ? options : {};
+
+    var theme = options.theme || 'default';
+    var hue = options.hue || '800';
+
+    var palette = PALETTES[options.palette] ||
+      PALETTES[THEMES[theme].colors[options.palette || 'primary'].name];
+
+    var color = angular.isObject(palette[hue]) ? palette[hue].hex : palette[hue];
+
+    return setBrowserColor(color);
+  };
+
   return themingProvider = {
     definePalette: definePalette,
     extendPalette: extendPalette,
     theme: registerTheme,
 
+    /**
+     * return a read-only clone of the current theme configuration
+     */
     configuration : function() {
-      // return a read-only clone of the current configuration
-      var locals = { defaultTheme : defaultTheme, alwaysWatchTheme : alwaysWatchTheme };
-      return angular.extend( { }, config, locals );
+      return angular.extend( { }, themeConfig, {
+        defaultTheme : defaultTheme,
+        alwaysWatchTheme : alwaysWatchTheme,
+        registeredStyles : [].concat(themeConfig.registeredStyles)
+      });
     },
 
     /**
-     * Easy way to disable theming without having to use
-     * `.constant("$MD_THEME_CSS","");` This disables
-     * all dynamic theme style sheet generations and injections...
+     * @ngdoc method
+     * @name $mdThemingProvider#disableTheming
+     * @description
+     * An easier way to disable theming without having to use `.constant("$MD_THEME_CSS","");`.
+     * This disables all dynamic theme style sheet generations and injections.
+     * @param {boolean=} isDisabled Disable all dynamic theme style sheet generations and injections
+     *  if `true` or `undefined`.
      */
     disableTheming: function(isDisabled) {
       themeConfig.disableTheming = angular.isUndefined(isDisabled) || !!isDisabled;
     },
 
+    /**
+     * @ngdoc method
+     * @name $mdThemingProvider#registerStyles
+     * @param {string} styles The styles to be appended to AngularJS Material's built in theme CSS.
+     */
     registerStyles: function(styles) {
       themeConfig.registeredStyles.push(styles);
     },
 
+    /**
+     * @ngdoc method
+     * @name $mdThemingProvider#setNonce
+     * @param {string} nonceValue The nonce to be added as an attribute to the theme style tags.
+     * Setting a value allows the use of CSP policy without using the unsafe-inline directive.
+     */
     setNonce: function(nonceValue) {
       themeConfig.nonce = nonceValue;
     },
@@ -274,13 +337,26 @@ function ThemingProvider($mdColorPalette) {
       themeConfig.generateOnDemand = onDemand;
     },
 
+    /**
+     * @ngdoc method
+     * @name $mdThemingProvider#setDefaultTheme
+     * @param {string} theme Default theme name to be applied to elements. Default value is `default`.
+     */
     setDefaultTheme: function(theme) {
       defaultTheme = theme;
     },
 
+    /**
+     * @ngdoc method
+     * @name $mdThemingProvider#alwaysWatchTheme
+     * @param {boolean} alwaysWatch Whether or not to always watch themes for changes and re-apply
+     * classes when they change. Default is `false`. Enabling can reduce performance.
+     */
     alwaysWatchTheme: function(alwaysWatch) {
       alwaysWatchTheme = alwaysWatch;
     },
+
+    enableBrowserColor: enableBrowserColor,
 
     $get: ThemingService,
     _LIGHT_DEFAULT_HUES: LIGHT_DEFAULT_HUES,
@@ -291,16 +367,71 @@ function ThemingProvider($mdColorPalette) {
     _rgba: rgba
   };
 
-  // Example: $mdThemingProvider.definePalette('neonRed', { 50: '#f5fafa', ... });
+  /**
+   * @ngdoc method
+   * @name $mdThemingProvider#definePalette
+   * @description
+   * In the event that you need to define a custom color palette, you can use this function to
+   * make it available to your theme for use in its intention groups.<br>
+   * Note that you must specify all hues in the definition map.
+   * @param {string} name Name of palette being defined
+   * @param {object} map Palette definition that includes hue definitions and contrast colors:
+   * - `'50'` - `{string}`: HEX color
+   * - `'100'` - `{string}`: HEX color
+   * - `'200'` - `{string}`: HEX color
+   * - `'300'` - `{string}`: HEX color
+   * - `'400'` - `{string}`: HEX color
+   * - `'500'` - `{string}`: HEX color
+   * - `'600'` - `{string}`: HEX color
+   * - `'700'` - `{string}`: HEX color
+   * - `'800'` - `{string}`: HEX color
+   * - `'900'` - `{string}`: HEX color
+   * - `'A100'` - `{string}`: HEX color
+   * - `'A200'` - `{string}`: HEX color
+   * - `'A400'` - `{string}`: HEX color
+   * - `'A700'` - `{string}`: HEX color
+   * - `'contrastDefaultColor'` - `{string}`: `light` or `dark`
+   * - `'contrastDarkColors'` - `{string[]}`: Hues which should use dark contrast colors (i.e. raised button text).
+   *  For example: `['50', '100', '200', '300', '400', 'A100']`.
+   * - `'contrastLightColors'` - `{string[]}`: Hues which should use light contrast colors (i.e. raised button text).
+   *  For example: `['500', '600', '700', '800', '900', 'A200', 'A400', 'A700']`.
+   */
   function definePalette(name, map) {
     map = map || {};
     PALETTES[name] = checkPaletteValid(name, map);
     return themingProvider;
   }
 
-  // Returns an new object which is a copy of a given palette `name` with variables from
-  // `map` overwritten
-  // Example: var neonRedMap = $mdThemingProvider.extendPalette('red', { 50: '#f5fafafa' });
+  /**
+   * @ngdoc method
+   * @name $mdThemingProvider#extendPalette
+   * @description
+   * Sometimes it is easier to extend an existing color palette and then change a few properties,
+   * rather than defining a whole new palette.
+   * @param {string} name Name of palette being extended
+   * @param {object} map Palette definition that includes optional hue definitions and contrast colors:
+   * - `'50'` - `{string}`: HEX color
+   * - `'100'` - `{string}`: HEX color
+   * - `'200'` - `{string}`: HEX color
+   * - `'300'` - `{string}`: HEX color
+   * - `'400'` - `{string}`: HEX color
+   * - `'500'` - `{string}`: HEX color
+   * - `'600'` - `{string}`: HEX color
+   * - `'700'` - `{string}`: HEX color
+   * - `'800'` - `{string}`: HEX color
+   * - `'900'` - `{string}`: HEX color
+   * - `'A100'` - `{string}`: HEX color
+   * - `'A200'` - `{string}`: HEX color
+   * - `'A400'` - `{string}`: HEX color
+   * - `'A700'` - `{string}`: HEX color
+   * - `'contrastDefaultColor'` - `{string}`: `light` or `dark`
+   * - `'contrastDarkColors'` - `{string[]}`: Hues which should use dark contrast colors (i.e. raised button text).
+   *  For example: `['50', '100', '200', '300', '400', 'A100']`.
+   * - `'contrastLightColors'` - `{string[]}`: Hues which should use light contrast colors (i.e. raised button text).
+   *  For example: `['500', '600', '700', '800', '900', 'A200', 'A400', 'A700']`.
+   *  @returns {object} A new object which is a copy of the given palette, `name`,
+   *    with variables from `map` overwritten.
+   */
   function extendPalette(name, map) {
     return checkPaletteValid(name,  angular.extend({}, PALETTES[name] || {}, map) );
   }
@@ -319,10 +450,16 @@ function ThemingProvider($mdColorPalette) {
     return map;
   }
 
-  // Register a theme (which is a collection of color palettes to use with various states
-  // ie. warn, accent, primary )
-  // Optionally inherit from an existing theme
-  // $mdThemingProvider.theme('custom-theme').primaryPalette('red');
+  /**
+   * @ngdoc method
+   * @name $mdThemingProvider#theme
+   * @description
+   * Register a theme (which is a collection of color palettes); i.e. `warn`, `accent`,
+   * `background`, and `primary`.<br>
+   * Optionally inherit from an existing theme.
+   * @param {string} name Name of theme being registered
+   * @param {string=} inheritFrom Existing theme name to inherit from
+   */
   function registerTheme(name, inheritFrom) {
     if (THEMES[name]) return THEMES[name];
 
@@ -422,6 +559,7 @@ function ThemingProvider($mdColorPalette) {
 
       self[colorType + 'Color'] = function() {
         var args = Array.prototype.slice.call(arguments);
+        // eslint-disable-next-line no-console
         console.warn('$mdThemingProviderTheme.' + colorType + 'Color() has been deprecated. ' +
                      'Use $mdThemingProviderTheme.' + colorType + 'Palette() instead.');
         return self[colorType + 'Palette'].apply(self, args);
@@ -432,38 +570,164 @@ function ThemingProvider($mdColorPalette) {
   /**
    * @ngdoc service
    * @name $mdTheming
-   *
+   * @module material.core.theming
    * @description
+   * Service that makes an element apply theming related <b>classes</b> to itself.
    *
-   * Service that makes an element apply theming related classes to itself.
-   *
-   * ```js
+   * <hljs lang="js">
+   * // Example component directive that we want to apply theming classes to.
    * app.directive('myFancyDirective', function($mdTheming) {
    *   return {
-   *     restrict: 'e',
-   *     link: function(scope, el, attrs) {
-   *       $mdTheming(el);
+   *     restrict: 'AE',
+   *     link: function(scope, element, attrs) {
+   *       // Initialize the service using our directive's element
+   *       $mdTheming(element);
+   *
+   *       $mdTheming.defineTheme('myTheme', {
+   *         primary: 'blue',
+   *         accent: 'pink',
+   *         dark: true
+   *       });
+   *       // Your directive's custom code here.
    *     }
    *   };
    * });
-   * ```
-   * @param {el=} element to apply theming to
+   * </hljs>
+   * @param {element=} element Element that will have theming classes applied to it.
    */
-  /* @ngInject */
-  function ThemingService($rootScope, $log) {
-        // Allow us to be invoked via a linking function signature.
-    var applyTheme = function (scope, el) {
-          if (el === undefined) { el = scope; scope = undefined; }
-          if (scope === undefined) { scope = $rootScope; }
-          applyTheme.inherit(el, el);
-        };
 
-    applyTheme.THEMES = angular.extend({}, THEMES);
-    applyTheme.PALETTES = angular.extend({}, PALETTES);
+  /**
+   * @ngdoc property
+   * @name $mdTheming#THEMES
+   * @description
+   * Property to get all the themes defined
+   * @returns {object} All the themes defined with their properties.
+   */
+
+  /**
+   * @ngdoc property
+   * @name $mdTheming#PALETTES
+   * @description
+   * Property to get all the palettes defined
+   * @returns {object} All the palettes defined with their colors.
+   */
+
+  /**
+   * @ngdoc method
+   * @name $mdTheming#registered
+   * @description
+   * Determine is specified theme name is a valid, registered theme
+   * @param {string} themeName the theme to check if registered
+   * @returns {boolean} whether the theme is registered or not
+   */
+
+  /**
+   * @ngdoc method
+   * @name $mdTheming#defaultTheme
+   * @description
+   * Returns the default theme
+   * @returns {string} The default theme
+   */
+
+  /**
+   * @ngdoc method
+   * @name $mdTheming#generateTheme
+   * @description
+   * Lazy generate themes - by default, every theme is generated when defined.
+   * You can disable this in the configuration section using the
+   * `$mdThemingProvider.generateThemesOnDemand(true);`
+   *
+   * The theme name that is passed in must match the name of the theme that was defined as part of the configuration block.
+   *
+   * @param name {string} theme name to generate
+   */
+
+  /**
+   * @ngdoc method
+   * @name $mdTheming#setBrowserColor
+   * @description
+   * Enables browser header coloring. For more info please visit
+   * <a href="https://developers.google.com/web/fundamentals/design-and-ui/browser-customization/theme-color">
+   *   Web Fundamentals</a>.
+   * @param {object=} options Options for the browser color, which include:<br/>
+   * - `theme` - `{string}`: A defined theme via `$mdThemeProvider` to use the palettes from. Default is `default` theme. <br/>
+   * - `palette` - `{string}`:  Can be any one of the basic material design palettes, extended defined palettes, or `primary`,
+   *  `accent`, `background`, and `warn`. Default is `primary`.<br/>
+   * - `hue` -  `{string}`: The hue from the selected palette. Default is `800`.<br/>
+   * @returns {function} Function that removes the browser coloring when called.
+   */
+
+  /**
+   * @ngdoc method
+   * @name $mdTheming#defineTheme
+   * @description
+   * Dynamically define a theme by using an options object that contains palette names.
+   *
+   * @param {string} name Theme name to define
+   * @param {object} options Theme definition options
+   * Options are:<br/>
+   * - `primary` - `{string}`: The name of the primary palette to use in the theme.<br/>
+   * - `accent` - `{string}`: The name of the accent palette to use in the theme.<br/>
+   * - `warn` - `{string}`: The name of the warn palette to use in the theme.<br/>
+   * - `background` - `{string}`: The name of the background palette to use in the theme.<br/>
+   * - `dark` - `{boolean}`: Indicates if it's a dark theme.<br/>
+   * @returns {Promise<string>} A resolved promise with the new theme name.
+   */
+
+  /* @ngInject */
+  function ThemingService($rootScope, $mdUtil, $q, $log) {
+    // Allow us to be invoked via a linking function signature.
+    var applyTheme = function (scope, el) {
+      if (el === undefined) { el = scope; scope = undefined; }
+      if (scope === undefined) { scope = $rootScope; }
+      applyTheme.inherit(el, el);
+    };
+
+    Object.defineProperty(applyTheme, 'THEMES', {
+      get: function () {
+        return angular.extend({}, THEMES);
+      }
+    });
+    Object.defineProperty(applyTheme, 'PALETTES', {
+      get: function () {
+        return angular.extend({}, PALETTES);
+      }
+    });
+    Object.defineProperty(applyTheme, 'ALWAYS_WATCH', {
+      get: function () {
+        return alwaysWatchTheme;
+      }
+    });
     applyTheme.inherit = inheritTheme;
     applyTheme.registered = registered;
     applyTheme.defaultTheme = function() { return defaultTheme; };
     applyTheme.generateTheme = function(name) { generateTheme(THEMES[name], name, themeConfig.nonce); };
+    applyTheme.defineTheme = function(name, options) {
+      options = options || {};
+
+      var theme = registerTheme(name);
+
+      if (options.primary) {
+        theme.primaryPalette(options.primary);
+      }
+      if (options.accent) {
+        theme.accentPalette(options.accent);
+      }
+      if (options.warn) {
+        theme.warnPalette(options.warn);
+      }
+      if (options.background) {
+        theme.backgroundPalette(options.background);
+      }
+      if (options.dark){
+        theme.dark();
+      }
+
+      this.generateTheme(name);
+
+      return $q.resolve(name);
+    };
+    applyTheme.setBrowserColor = enableBrowserColor;
 
     return applyTheme;
 
@@ -479,14 +743,25 @@ function ThemingProvider($mdColorPalette) {
      * Get theme name for the element, then update with Theme CSS class
      */
     function inheritTheme (el, parent) {
-      var ctrl = parent.controller('mdTheme');
-      var attrThemeValue = el.attr('md-theme-watch');
-      var watchTheme = (alwaysWatchTheme || angular.isDefined(attrThemeValue)) && attrThemeValue != 'false';
+      var ctrl = parent.controller('mdTheme') || el.data('$mdThemeController');
 
       updateThemeClass(lookupThemeName());
 
-      if ((alwaysWatchTheme && !registerChangeCallback()) || (!alwaysWatchTheme && watchTheme)) {
-        el.on('$destroy', $rootScope.$watch(lookupThemeName, updateThemeClass) );
+      if (ctrl) {
+        var watchTheme = alwaysWatchTheme ||
+                         ctrl.$shouldWatch ||
+                         $mdUtil.parseAttributeBoolean(el.attr('md-theme-watch'));
+
+        var unwatch = ctrl.registerChanges(function (name) {
+          updateThemeClass(name);
+
+          if (!watchTheme) {
+            unwatch();
+          }
+          else {
+            el.on('$destroy', unwatch);
+          }
+        });
       }
 
       /**
@@ -494,7 +769,6 @@ function ThemingProvider($mdColorPalette) {
        */
       function lookupThemeName() {
         // As a few components (dialog) add their controllers later, we should also watch for a controller init.
-        ctrl = parent.controller('mdTheme') || el.data('$mdThemeController');
         return ctrl && ctrl.$mdTheme || (defaultTheme == 'default' ? '' : defaultTheme);
       }
 
@@ -517,29 +791,34 @@ function ThemingProvider($mdColorPalette) {
           el.data('$mdThemeController', ctrl);
         }
       }
-
-      /**
-       * Register change callback with parent mdTheme controller
-       */
-      function registerChangeCallback() {
-        var parentController = parent.controller('mdTheme');
-        if (!parentController) return false;
-        el.on('$destroy', parentController.registerChanges( function() {
-          updateThemeClass(lookupThemeName());
-        }));
-        return true;
-      }
     }
 
   }
 }
 
-function ThemingDirective($mdTheming, $interpolate, $log) {
+function ThemingDirective($mdTheming, $interpolate, $parse, $mdUtil, $q, $log) {
   return {
-    priority: 100,
+    priority: 101, // has to be more than 100 to be before interpolation (issue on IE)
     link: {
       pre: function(scope, el, attrs) {
         var registeredCallbacks = [];
+
+        var startSymbol = $interpolate.startSymbol();
+        var endSymbol = $interpolate.endSymbol();
+
+        var theme = attrs.mdTheme.trim();
+
+        var hasInterpolation =
+          theme.substr(0, startSymbol.length) === startSymbol &&
+          theme.lastIndexOf(endSymbol) === theme.length - endSymbol.length;
+
+        var oneTimeOperator = '::';
+        var oneTimeBind = attrs.mdTheme
+            .split(startSymbol).join('')
+            .split(endSymbol).join('')
+            .trim()
+            .substr(0, oneTimeOperator.length) === oneTimeOperator;
+
         var ctrl = {
           registerChanges: function (cb, context) {
             if (context) {
@@ -554,22 +833,56 @@ function ThemingDirective($mdTheming, $interpolate, $log) {
               if (index > -1) {
                 registeredCallbacks.splice(index, 1);
               }
-            }
+            };
           },
           $setTheme: function (theme) {
             if (!$mdTheming.registered(theme)) {
               $log.warn('attempted to use unregistered theme \'' + theme + '\'');
             }
+
             ctrl.$mdTheme = theme;
 
-            registeredCallbacks.forEach(function (cb) {
-              cb();
-            })
-          }
+            // Iterating backwards to support unregistering during iteration
+            // http://stackoverflow.com/a/9882349/890293
+            // we don't use `reverse()` of array because it mutates the array and we don't want it to get re-indexed
+            for (var i = registeredCallbacks.length; i--;) {
+              registeredCallbacks[i](theme);
+            }
+          },
+          $shouldWatch: $mdUtil.parseAttributeBoolean(el.attr('md-theme-watch')) ||
+                        $mdTheming.ALWAYS_WATCH ||
+                        (hasInterpolation && !oneTimeBind)
         };
+
         el.data('$mdThemeController', ctrl);
-        ctrl.$setTheme($interpolate(attrs.mdTheme)(scope));
-        attrs.$observe('mdTheme', ctrl.$setTheme);
+
+        var getTheme = function () {
+          var interpolation = $interpolate(attrs.mdTheme)(scope);
+          return $parse(interpolation)(scope) || interpolation;
+        };
+
+        var setParsedTheme = function (theme) {
+          if (typeof theme === 'string') {
+            return ctrl.$setTheme(theme);
+          }
+
+          $q.when( angular.isFunction(theme) ?  theme() : theme )
+            .then(function(name){
+              ctrl.$setTheme(name);
+            });
+        };
+
+        setParsedTheme(getTheme());
+
+        var unwatch = scope.$watch(getTheme, function(theme) {
+          if (theme) {
+            setParsedTheme(theme);
+
+            if (!ctrl.$shouldWatch) {
+              unwatch();
+            }
+          }
+        });
       }
     }
   };
@@ -612,14 +925,8 @@ function parseRules(theme, colorType, rules) {
   checkValidPalette(theme, colorType);
 
   rules = rules.replace(/THEME_NAME/g, theme.name);
-  var generatedRules = [];
-  var color = theme.colors[colorType];
-
   var themeNameRegex = new RegExp('\\.md-' + theme.name + '-theme', 'g');
-  // Matches '{{ primary-color }}', etc
-  var hueRegex = new RegExp('(\'|")?{{\\s*(' + colorType + ')-(color|contrast)-?(\\d\\.?\\d*)?\\s*}}(\"|\')?','g');
-  var simpleVariableRegex = /'?"?\{\{\s*([a-zA-Z]+)-(A?\d+|hue\-[0-3]|shadow|default)-?(\d\.?\d*)?(contrast)?\s*\}\}'?"?/g;
-  var palette = PALETTES[color.name];
+  var simpleVariableRegex = /'?"?\{\{\s*([a-zA-Z]+)-(A?\d+|hue-[0-3]|shadow|default)-?(\d\.?\d*)?(contrast)?\s*\}\}'?"?/g;
 
   // find and replace simple variables where we use a specific hue, not an entire palette
   // eg. "{{primary-100}}"
@@ -642,10 +949,17 @@ function parseRules(theme, colorType, rules) {
     return rgba( (PALETTES[ theme.colors[colorType].name ][hue] || '')[contrast ? 'contrast' : 'value'], opacity );
   });
 
+  // Matches '{{ primary-color }}', etc
+  var hueRegex = new RegExp('(\'|")?{{\\s*([a-zA-Z]+)-(color|contrast)-?(\\d\\.?\\d*)?\\s*}}("|\')?','g');
+  var generatedRules = [];
+
   // For each type, generate rules for each hue (ie. default, md-hue-1, md-hue-2, md-hue-3)
-  angular.forEach(color.hues, function(hueValue, hueName) {
+  angular.forEach(['default', 'hue-1', 'hue-2', 'hue-3'], function(hueName) {
     var newRule = rules
-      .replace(hueRegex, function(match, _, colorType, hueType, opacity) {
+      .replace(hueRegex, function(match, _, matchedColorType, hueType, opacity) {
+        var color = theme.colors[matchedColorType];
+        var palette = PALETTES[color.name];
+        var hueValue = color.hues[hueName];
         return rgba(palette[hueValue][hueType === 'color' ? 'value' : 'contrast'], opacity);
       });
     if (hueName !== 'default') {
@@ -655,9 +969,10 @@ function parseRules(theme, colorType, rules) {
     // Don't apply a selector rule to the default theme, making it easier to override
     // styles of the base-component
     if (theme.name == 'default') {
-      var themeRuleRegex = /((?:(?:(?: |>|\.|\w|-|:|\(|\)|\[|\]|"|'|=)+) )?)((?:(?:\w|\.|-)+)?)\.md-default-theme((?: |>|\.|\w|-|:|\(|\)|\[|\]|"|'|=)*)/g;
-      newRule = newRule.replace(themeRuleRegex, function(match, prefix, target, suffix) {
-        return match + ', ' + prefix + target + suffix;
+      var themeRuleRegex = /((?:\s|>|\.|\w|-|:|\(|\)|\[|\]|"|'|=)*)\.md-default-theme((?:\s|>|\.|\w|-|:|\(|\)|\[|\]|"|'|=)*)/g;
+
+      newRule = newRule.replace(themeRuleRegex, function(match, start, end) {
+        return match + ', ' + start + end;
       });
     }
     generatedRules.push(newRule);
@@ -692,17 +1007,12 @@ function generateAllThemes($injector, $mdTheming) {
                   .filter(function(rule) { return rule && rule.trim().length; })
                   .map(function(rule) { return rule.trim() + '}'; });
 
-
-  var ruleMatchRegex = new RegExp('md-(' + THEME_COLOR_TYPES.join('|') + ')', 'g');
-
   THEME_COLOR_TYPES.forEach(function(type) {
     rulesByType[type] = '';
   });
 
-
   // Sort the rules based on type, allowing us to do color substitution on a per-type basis
   rules.forEach(function(rule) {
-    var match = rule.match(ruleMatchRegex);
     // First: test that if the rule has '.md-accent', it goes into the accent set of rules
     for (var i = 0, type; type = THEME_COLOR_TYPES[i]; i++) {
       if (rule.indexOf('.md-' + type) > -1) {
@@ -769,6 +1079,7 @@ function generateAllThemes($injector, $mdTheming) {
       }
 
       palette[hueName] = {
+        hex: palette[hueName],
         value: rgbValue,
         contrast: getContrastColor()
       };

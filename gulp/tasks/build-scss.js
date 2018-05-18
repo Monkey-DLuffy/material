@@ -1,37 +1,31 @@
-var config = require('../config');
-var gulp = require('gulp');
-var gutil = require('gulp-util');
-var fs = require('fs');
-var path = require('path');
-var rename = require('gulp-rename');
-var filter = require('gulp-filter');
-var concat = require('gulp-concat');
-var series = require('stream-series');
-var util = require('../util');
-var sassUtils = require('../../scripts/gulp-utils');
-var sass = require('gulp-sass');
-var minifyCss = require('gulp-minify-css');
-var insert = require('gulp-insert');
-var addsrc = require('gulp-add-src');
-var gulpif = require('gulp-if');
-var args = util.args;
-var IS_DEV = require('../const').IS_DEV;
+const config = require('../config');
+const gulp = require('gulp');
+const gutil = require('gulp-util');
+const rename = require('gulp-rename');
+const filter = require('gulp-filter');
+const concat = require('gulp-concat');
+const series = require('stream-series');
+const util = require('../util');
+const sassUtils = require('../../scripts/gulp-utils');
+const sass = require('gulp-sass');
+const insert = require('gulp-insert');
+const gulpif = require('gulp-if');
+const minifyCss = util.minifyCss;
+const args = util.args;
+const IS_DEV = require('../const').IS_DEV;
 
 exports.task = function() {
-  var streams = [];
-  var modules   = args['modules'],
-      overrides = args['override'],
+  const streams = [];
+  const modules   = args.modules,
+      overrides = args.override,
       dest      = args['output-dir'] || config.outputDir,
-      filename  = args['filename'] || 'angular-material',
-      baseFiles = config.scssBaseFiles,
-      layoutDest= dest + 'layouts/',
-      scssPipe  = undefined;
+      layoutDest= dest + 'layouts/';
 
   gutil.log("Building css files...");
 
   // create SCSS file for distribution
   streams.push(
-    scssPipe = gulp.src(getPaths())
+    gulp.src(getPaths())
       .pipe(util.filterNonCodeFiles())
       .pipe(filter(['**', '!**/*.css']))
       .pipe(filter(['**', '!**/*-theme.scss']))
@@ -39,13 +33,14 @@ exports.task = function() {
       .pipe(concat('angular-material.scss'))
       .pipe(gulp.dest(dest))            // raw uncompiled SCSS
       .pipe(sass())
+      .pipe(util.dedupeCss())
       .pipe(util.autoprefix())
       .pipe(insert.prepend(config.banner))
       .pipe(gulp.dest(dest))                        // unminified
       .pipe(gulpif(!IS_DEV, minifyCss()))
+      .pipe(gulpif(!IS_DEV, util.dedupeCss()))
       .pipe(rename({extname: '.min.css'}))
       .pipe(gulp.dest(dest))                        // minified
-
   );
 
   streams.push(
@@ -68,10 +63,12 @@ exports.task = function() {
         .pipe(insert.prepend(config.banner))
         .pipe(gulp.dest(layoutDest))      // raw uncompiled SCSS
         .pipe(sass())
+        .pipe(util.dedupeCss())
         .pipe(util.autoprefix())
         .pipe(rename({ extname : '.css'}))
         .pipe(gulp.dest(layoutDest))
         .pipe(gulpif(!IS_DEV, minifyCss()))
+        .pipe(gulpif(!IS_DEV, util.dedupeCss()))
         .pipe(rename({extname: '.min.css'}))
         .pipe(gulp.dest(layoutDest))
   );
@@ -88,11 +85,13 @@ exports.task = function() {
           .pipe(sassUtils.hoistScssVariables())
           .pipe(gulp.dest(layoutDest))     // raw uncompiled SCSS
           .pipe(sass())
+          .pipe(util.dedupeCss())
           .pipe(util.autoprefix())
           .pipe(rename({ extname : '.css'}))
           .pipe(insert.prepend(config.banner))
           .pipe(gulp.dest(layoutDest))
           .pipe(gulpif(!IS_DEV, minifyCss()))
+          .pipe(gulpif(!IS_DEV, util.dedupeCss()))
           .pipe(rename({extname: '.min.css'}))
           .pipe(gulp.dest(layoutDest))
   );
@@ -101,7 +100,7 @@ exports.task = function() {
 
 
   function getPaths () {
-    var paths = config.scssBaseFiles.slice();
+    const paths = config.scssBaseFiles.slice();
     if ( modules ) {
       paths.push.apply(paths, modules.split(',').map(function (module) {
         return 'src/components/' + module + '/*.scss';

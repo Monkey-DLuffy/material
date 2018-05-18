@@ -1,13 +1,15 @@
 (function() {
-  DocsApp
+  angular.module('docsApp')
     .factory('codepenDataAdapter', CodepenDataAdapter)
     .factory('codepen', ['$demoAngularScripts', '$document', 'codepenDataAdapter', Codepen]);
 
   // Provides a service to open a code example in codepen.
   function Codepen($demoAngularScripts, $document, codepenDataAdapter) {
 
-    // The following URL must be HTTP and not HTTPS to allow us to do localhost testing
-    var CODEPEN_API = 'http://codepen.io/pen/define/';
+    // The following URL used to be HTTP and not HTTPS to allow us to do localhost testing
+    // It's no longer working, for more info:
+    // https://blog.codepen.io/2017/03/31/codepen-going-https/
+    var CODEPEN_API = 'https://codepen.io/pen/define/';
 
     return {
       editOnCodepen: editOnCodepen
@@ -41,7 +43,14 @@
     function escapeJsonQuotes(json) {
       return JSON.stringify(json)
         .replace(/'/g, "&amp;apos;")
-        .replace(/"/g, "&amp;quot;");
+        .replace(/"/g, "&amp;quot;")
+        /**
+         * Codepen was unescaping &lt; (<) and &gt; (>) which caused, on some demos,
+         * an unclosed elements (like <md-select>). 
+         * Used different unicode lookalike characters so it won't be considered as an element
+         */
+        .replace(/&amp;lt;/g, "&#x02C2;") // http://graphemica.com/%CB%82
+        .replace(/&amp;gt;/g, "&#x02C3;"); // http://graphemica.com/%CB%83
     }
   }
 
@@ -195,9 +204,9 @@
       var matchAngularModule =  /\.module\(('[^']*'|"[^"]*")\s*,(\s*\[([^\]]*)\]\s*\))/ig;
       var modules = "['ngMaterial', 'ngMessages', 'material.svgAssetsCache']";
 
-      // See scripts.js for list of external Angular libraries used for the demos
+      // See scripts.js for list of external AngularJS libraries used for the demos
 
-      return file.replace(matchAngularModule, ".module('MyApp',"+ modules + ")");
+      return file.replace(matchAngularModule, ".module('MyApp', "+ modules + ")");
     }
   }
 })();

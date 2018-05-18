@@ -1,7 +1,9 @@
+const sauceBrowsers = require('./sauce-browsers.json');
+const path = require('path');
 
 module.exports = function(config) {
 
-  var UNCOMPILED_SRC = [
+  const UNCOMPILED_SRC = [
 
     // To enabled use of `gulp karma-watch`,
     // don't use the dist/angular-material.js
@@ -23,13 +25,13 @@ module.exports = function(config) {
     'src/**/*.spec.js'
   ];
 
-  var COMPILED_SRC = [
+  const COMPILED_SRC = [
     'dist/angular-material.min.css',
     'dist/angular-material.min.js',   // Minified source
     'src/**/*.spec.js'
   ];
 
-  var dependencies = process.env.KARMA_TEST_JQUERY ? ['node_modules/jquery/dist/jquery.js'] : [];
+  let dependencies = process.env.KARMA_TEST_JQUERY ? ['node_modules/jquery/dist/jquery.js'] : [];
       dependencies = dependencies.concat([
         'node_modules/angular/angular.js',
         'node_modules/angular-animate/angular-animate.js',
@@ -42,13 +44,14 @@ module.exports = function(config) {
         'test/angular-material-spec.js'
       ]);
 
-  var testSrc = process.env.KARMA_TEST_COMPRESSED ? COMPILED_SRC : UNCOMPILED_SRC;
+  const testSrc = process.env.KARMA_TEST_COMPRESSED ? COMPILED_SRC : UNCOMPILED_SRC;
 
   config.set({
 
-    basePath: __dirname + '/..',
+    basePath: path.join(__dirname, '/..'),
     frameworks: ['jasmine'],
     files: dependencies.concat(testSrc),
+    customLaunchers: sauceBrowsers,
 
     browserDisconnectTimeout:500,
 
@@ -70,7 +73,7 @@ module.exports = function(config) {
     // - Safari (only Mac; has to be installed with `npm install karma-safari-launcher`)
     // - PhantomJS
     // - IE (only Windows; has to be installed with `npm install karma-ie-launcher`)
-    browsers: ['Firefox', 'PhantomJS', 'Chrome'],
+    browsers: ['Firefox', 'Chrome'],
 
     client: {
       // Do not clear the context as this can cause reload failures with Jasmine

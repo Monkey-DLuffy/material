@@ -60,7 +60,7 @@ function ColorUtilFactory() {
    */
   function rgbaToRgb (color) {
     return color
-      ? color.replace('rgba', 'rgb').replace(/,[^\),]+\)/, ')')
+      ? color.replace('rgba', 'rgb').replace(/,[^),]+\)/, ')')
       : 'rgb(0,0,0)';
   }
 
@@ -69,5 +69,5 @@ function ColorUtilFactory() {
     hexToRgba: hexToRgba,
     rgbToRgba: rgbToRgba,
     rgbaToRgb: rgbaToRgb
-  }
+  };
 }

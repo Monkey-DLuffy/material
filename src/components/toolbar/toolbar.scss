@@ -70,7 +70,7 @@ md-toolbar {
   }
 
   > .md-indent {
-    @include rtl-prop(margin-left, margin-right, $md-toolbar-indent-margin);
+    @include rtl-prop(margin-left, margin-right, $md-toolbar-indent-margin, auto);
   }
 
   ~ md-content {
@@ -115,6 +115,9 @@ md-toolbar {
     display: flex;
     align-items: center;
   }
+  md-checkbox {
+    margin: inherit;
+  }
   .md-button {
     margin-top: 0;
     margin-bottom: 0;
@@ -133,16 +136,16 @@ md-toolbar {
     }
   }
   &> .md-button:first-child {
-    @include rtl-prop(margin-left, margin-right, $icon-button-margin-offset);
+    @include rtl-prop(margin-left, margin-right, $icon-button-margin-offset, auto);
   }
   &> .md-button:last-child {
-    @include rtl-prop(margin-right, margin-left, $icon-button-margin-offset);
+    @include rtl-prop(margin-right, margin-left, $icon-button-margin-offset, auto);
   }
 
   &> md-menu:last-child {
-    @include rtl-prop(margin-right, margin-left, $icon-button-margin-offset);
+    @include rtl-prop(margin-right, margin-left, $icon-button-margin-offset, auto);
     & > .md-button {
-      @include rtl-prop(margin-right, margin-left, 0);
+      @include rtl-prop(margin-right, margin-left, 0, auto);
     }
   }
 

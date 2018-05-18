@@ -46,6 +46,7 @@ angular.module('dialogDemo1', ['ngMaterial'])
       .ariaLabel('Dog name')
       .initialValue('Buddy')
       .targetEvent(ev)
+      .required(true)
       .ok('Okay!')
       .cancel('I\'m a cat person');
 
@@ -89,25 +90,24 @@ angular.module('dialogDemo1', ['ngMaterial'])
 
   $scope.showPrerenderedDialog = function(ev) {
     $mdDialog.show({
-      controller: DialogController,
       contentElement: '#myDialog',
       parent: angular.element(document.body),
       targetEvent: ev,
       clickOutsideToClose: true
     });
   };
+
+  function DialogController($scope, $mdDialog) {
+    $scope.hide = function() {
+      $mdDialog.hide();
+    };
+
+    $scope.cancel = function() {
+      $mdDialog.cancel();
+    };
+
+    $scope.answer = function(answer) {
+      $mdDialog.hide(answer);
+    };
+  }
 });
-
-function DialogController($scope, $mdDialog) {
-  $scope.hide = function() {
-    $mdDialog.hide();
-  };
-
-  $scope.cancel = function() {
-    $mdDialog.cancel();
-  };
-
-  $scope.answer = function(answer) {
-    $mdDialog.hide(answer);
-  };
-}

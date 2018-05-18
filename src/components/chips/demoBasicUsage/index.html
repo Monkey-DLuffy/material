@@ -5,7 +5,7 @@
 
     <form name="fruitForm">
       <md-chips ng-model="ctrl.roFruitNames" name="fruitName" readonly="ctrl.readonly"
-                md-removable="ctrl.removable" md-max-chips="5">
+                md-removable="ctrl.removable" md-max-chips="5" placeholder="Enter a fruit...">
         <md-chip-template>
           <strong>{{$chip}}</strong>
           <em>(fruit)</em>
@@ -13,7 +13,7 @@
       </md-chips>
 
       <div class="errors" ng-messages="fruitForm.fruitName.$error">
-        <div ng-message="md-max-chips">The maxmium of chips is reached.</div>
+        <div ng-message="md-max-chips">Maximum number of chips reached.</div>
       </div>
     </form>
 
@@ -22,6 +22,11 @@
 
     <md-chips ng-model="ctrl.fruitNames" readonly="ctrl.readonly" md-removable="ctrl.removable"></md-chips>
 
+    <br/>
+    <h2 class="md-title">Use ng-change</h2>
+
+    <md-chips ng-model="ctrl.ngChangeFruitNames" ng-change="ctrl.onModelChange(ctrl.ngChangeFruitNames)" 
+      md-removable="ctrl.removable"></md-chips>
 
     <br/>
     <h2 class="md-title">Make chips editable.</h2>

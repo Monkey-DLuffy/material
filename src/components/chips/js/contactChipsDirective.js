@@ -17,6 +17,7 @@ angular
  * appearance of the matched text inside of the contacts' autocomplete popup.
  *
  * @param {string=|object=} ng-model A model to bind the list of items to
+ * @param {expression=} ng-change AngularJS expression to be executed on chip addition/removal
  * @param {string=} placeholder Placeholder text that will be forwarded to the input.
  * @param {string=} secondary-placeholder Placeholder text that will be forwarded to the input,
  *    displayed when there is at least on item in the list
@@ -29,10 +30,13 @@ angular
  *    contact's email address.
  * @param {string} md-contact-image The field name of the contact object representing the
  *    contact's image.
- *
+ * @param {number=} md-min-length Specifies the minimum length of text before autocomplete will
+ *    make suggestions
  *
  * @param {expression=} filter-selected Whether to filter selected contacts from the list of
- *    suggestions shown in the autocomplete. This attribute has been removed but may come back.
+ *    suggestions shown in the autocomplete.
+ *
+ *    ***Note:** This attribute has been removed but may come back.*
  *
  *
  *
@@ -54,7 +58,9 @@ angular
 var MD_CONTACT_CHIPS_TEMPLATE = '\
       <md-chips class="md-contact-chips"\
           ng-model="$mdContactChipsCtrl.contacts"\
+          ng-change="$mdContactChipsCtrl.ngChange($mdContactChipsCtrl.contacts)"\
           md-require-match="$mdContactChipsCtrl.requireMatch"\
+          md-chip-append-delay="{{$mdContactChipsCtrl.chipAppendDelay}}" \
           md-autocomplete-snap>\
           <md-autocomplete\
               md-menu-class="md-contact-chips-suggestions"\
@@ -63,6 +69,7 @@ var MD_CONTACT_CHIPS_TEMPLATE = '\
               md-items="item in $mdContactChipsCtrl.queryContact($mdContactChipsCtrl.searchText)"\
               md-item-text="$mdContactChipsCtrl.itemName(item)"\
               md-no-cache="true"\
+              md-min-length="$mdContactChipsCtrl.minLength"\
               md-autoselect\
               placeholder="{{$mdContactChipsCtrl.contacts.length == 0 ?\
                   $mdContactChipsCtrl.placeholder : $mdContactChipsCtrl.secondaryPlaceholder}}">\
@@ -117,18 +124,26 @@ function MdContactChips($mdTheming, $mdUtil) {
       contactImage: '@mdContactImage',
       contactEmail: '@mdContactEmail',
       contacts: '=ngModel',
+      ngChange: '&',
       requireMatch: '=?mdRequireMatch',
-      highlightFlags: '@?mdHighlightFlags'
+      minLength: '=?mdMinLength',
+      highlightFlags: '@?mdHighlightFlags',
+      chipAppendDelay: '@?mdChipAppendDelay'
     }
   };
 
   function compile(element, attr) {
     return function postLink(scope, element, attrs, controllers) {
+      var contactChipsController = controllers;
 
       $mdUtil.initOptionalProperties(scope, attr);
       $mdTheming(element);
 
       element.attr('tabindex', '-1');
+
+      attrs.$observe('mdChipAppendDelay', function(newValue) {
+        contactChipsController.chipAppendDelay = newValue;
+      });
     };
   }
 }
